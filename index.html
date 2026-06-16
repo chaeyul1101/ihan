@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>이한몬의 모험 & 전설 도감</title>
+    <style>
+        @font-face {
+            font-family: 'DungGeunMo';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+            font-weight: normal; font-style: normal;
+        }
+
+        body {
+            font-family: 'DungGeunMo', sans-serif;
+            background-color: #1a252c;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; margin: 0; color: #333; user-select: none;
+        }
+
+        #game-container {
+            width: 700px; height: 500px;
+            background-color: #f8f8f8;
+            border: 20px solid #d32f2f;
+            border-radius: 15px 15px 40px 15px;
+            position: relative; overflow: hidden;
+            box-shadow: 10px 10px 30px rgba(0,0,0,0.6);
+        }
+
+        .screen {
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .active { display: flex; }
+       
+        /* 맵 배경 & 길 */
+        #map-screen {
+            background-color: #7bed9f;
+            background-image: radial-gradient(#2ed573 15%, transparent 16%), radial-gradient(#2ed573 15%, transparent 16%);
+            background-size: 30px 30px; background-position: 0 0, 15px 15px;
+        }
+        .road { position: absolute; background: #dfe4ea; border: 2px solid #a4b0be; z-index: 1; }
+        .road-top { top: 80px; left: 80px; width: 540px; height: 50px; }
+        .road-bottom { top: 370px; left: 80px; width: 540px; height: 50px; }
+        .road-left { top: 80px; left: 80px; width: 50px; height: 340px; }
+        .road-right { top: 80px; left: 570px; width: 50px; height: 340px; }
+
+        .building {
+            position: absolute; background: white; border: 4px solid #2f3542;
+            border-radius: 5px; padding: 15px 10px 5px 10px; font-size: 18px;
+            text-align: center; font-weight: bold; z-index: 2;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.2); background-color: #f1f2f6;
+        }
+        .building::before {
+            content: ''; position: absolute; top: -15px; left: -4px; width: 100%; height: 20px;
+            border: 4px solid #2f3542; border-radius: 5px 5px 0 0;
+        }
+        #home { top: 20px; left: 20px; } #home::before { background-color: #ff6b81; }
+        #school { top: 20px; left: 580px; } #school::before { background-color: #1e90ff; }
+        #cafeteria { top: 400px; left: 20px; } #cafeteria::before { background-color: #ffa502; }
+        #library { top: 400px; left: 580px; } #library::before { background-color: #9c88ff; }
+
+        #player {
+            width: 40px; height: 40px; font-size: 35px;
+            position: absolute; top: 85px; left: 85px;
+            transition: top 0.15s linear, left 0.15s linear;
+            z-index: 10; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.4));
+        }
+
+        #map-dialogue {
+            position: absolute; bottom: 20px; width: 85%; background: rgba(255, 255, 255, 0.95);
+            border: 5px solid #2f3542; border-radius: 10px; padding: 20px; font-size: 20px;
+            line-height: 1.6; box-shadow: 5px 5px 0px rgba(0,0,0,0.2); cursor: pointer;
+            z-index: 30; display: none; left: 50%; transform: translateX(-50%);
+        }
+       
+        #options-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: none; flex-direction: column; z-index: 40;
+            background: rgba(255,255,255,0.95); padding: 25px;
+            border: 5px solid #2f3542; border-radius: 10px; box-shadow: 5px 5px 0px rgba(0,0,0,0.3); text-align: center;
+        }
+        .choice-btn { margin: 8px; padding: 12px 20px; font-size: 18px; font-family: 'DungGeunMo'; cursor: pointer; background: #fff; border: 3px solid #2f3542; border-radius: 8px; transition: 0.1s; }
+        .choice-btn:hover { background: #ffeaa7; transform: translateX(5px); }
+
+        #intro-screen, #starter-screen { background-color: #f1f2f6; }
+        #dialogue-box { position: absolute; bottom: 20px; width: 85%; background: white; border: 4px solid black; padding: 20px; font-size: 20px; cursor: pointer; z-index: 10; }
+        .pokeball-container { display: flex; gap: 40px; margin-top: 30px; }
+        .pokeball { font-size: 60px; cursor: pointer; transition: 0.2s; text-align: center; }
+        .pokeball:hover { transform: scale(1.2) translateY(-10px); }
+
+        #angry-alert { position: absolute; top: 15px; right: 15px; background: #ff4757; color: white; padding: 10px 15px; border: 3px solid white; border-radius: 10px; display: none; z-index: 50; cursor: pointer; animation: shake 0.5s infinite; font-size: 16px; text-align:center;}
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+        #heart-gauge { position: absolute; top: 15px; left: 15px; font-size: 24px; background: rgba(255,255,255,0.9); padding: 5px 15px; border: 3px solid #2f3542; border-radius: 20px; z-index: 20; box-shadow: 2px 2px 0px rgba(0,0,0,0.2); }
+        .falling-jelly { position: absolute; font-size: 30px; z-index: 25; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(500px); opacity: 0; } }
+
+        /* ✨ 📱 V7 BIG 사이즈 도감 UI (전체 화면 팝업 스타일) ✨ */
+        #pokedex-screen {
+            position: fixed; /* 게임 컨테이너 밖으로 빼서 띄움 */
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw; /* 화면 넓이의 90% */
+            height: 90vh; /* 화면 높이의 90% */
+            max-width: 1000px; /* 너무 퍼지지 않게 중앙 정렬 보정 */
+            background: linear-gradient(180deg, #cfefff, #ffffff, #fff0f5);
+            overflow-y: auto; overflow-x: hidden;
+            padding: 50px 30px; box-sizing: border-box; text-align: center;
+            border: 20px solid #d32f2f; /* 진짜 포켓몬 도감 같은 두꺼운 빨간 테두리 */
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: none;
+        }
+        #pokedex-screen.active { display: block; animation: zoomIn 0.5s ease-out; }
+        @keyframes zoomIn { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+       
+        .glass-box {
+            max-width: 800px; /* 내용이 너무 길어지지 않게 깔끔하게 정렬 */
+            margin: 0 auto 20px auto;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 2px solid white;
+            font-size: 18px;
+        }
+
+        .badge { display: inline-block; padding: 10px 15px; margin: 5px; background: white; border: 2px solid #ddd; border-radius: 20px; font-size: 16px; }
+       
+        .emotion-container { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 20px; }
+        .emotion { width: 70px; height: 70px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); font-size: 16px; box-shadow: 2px 2px 10px rgba(0,0,0,0.2); transition: 0.2s;}
+        .emotion:hover { transform: scale(1.1); }
+        .e-sad { background: #3498db; } .e-sensitive { background: #9b59b6; }
+        .e-disgust { background: #2ecc71; } .e-anxious { background: #e67e22; }
+        .e-anger { background: #e74c3c; }
+
+        .teacher-box { background: #f1f2f6; border: 2px dashed #aaa; padding: 20px; border-radius: 10px; margin: 15px 0; cursor: pointer; font-size: 20px; transition: 0.2s; }
+        .teacher-box:hover { background: #dfe4ea; transform: scale(1.02); }
+
+        .meter { height: 30px; background: #eee; border-radius: 20px; overflow: hidden; border: 2px solid #ccc; margin-top:15px;}
+        .fill { height: 100%; background: linear-gradient(90deg, #ffb8b8, #ff4757); width: 0%; transition: width 0.3s; }
+        .rage-btns button { padding: 10px 20px; margin: 10px; font-size: 18px; font-family: 'DungGeunMo'; border: 2px solid #333; border-radius: 10px; cursor: pointer; }
+
+        #sensei-popup { display: none; position: fixed; right: 30px; bottom: 30px; background: white; padding: 20px; border: 3px solid #2f3542; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); font-size: 18px; z-index: 2000; animation: popUp 0.3s ease-out; }
+        @keyframes popUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+       
+        #pokedex-screen::-webkit-scrollbar { width: 12px; }
+        #pokedex-screen::-webkit-scrollbar-track { background: #f1f2f6; border-radius: 10px; }
+        #pokedex-screen::-webkit-scrollbar-thumb { background: #ff4757; border-radius: 10px; }
+        #pokedex-screen::-webkit-scrollbar-thumb:hover { background: #d32f2f; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="intro-screen" class="screen active">
+        <h1 style="font-size: 80px; margin-bottom: 10px;">👨‍🦳</h1>
+        <div id="dialogue-box" onclick="nextDialogue()">포켓몬 세계에 온 걸 환영한다!</div>
+    </div>
+
+    <div id="starter-screen" class="screen">
+        <h1 style="font-size: 60px; margin:0;">👨‍🦳</h1>
+        <h2>스타팅을 고르렴!</h2>
+        <div class="pokeball-container">
+            <div class="pokeball" onclick="checkBall(0)">🔴<br><span style="font-size:16px">나몰빼미</span></div>
+            <div class="pokeball" onclick="checkBall(1)">🔴<br><span style="font-size:16px">염버니</span></div>
+            <div class="pokeball" onclick="checkBall(2)">🔴<br><span style="font-size:16px">물짱이</span></div>
+        </div>
+    </div>
+
+    <div id="map-screen" class="screen">
+        <div id="heart-gauge">🤍🤍🤍</div>
+        <div class="road road-top"></div><div class="road road-bottom"></div>
+        <div class="road road-left"></div><div class="road road-right"></div>
+        <div class="building" id="home">🏠<br>내 집</div>
+        <div class="building" id="school">🏫<br>학교</div>
+        <div class="building" id="cafeteria">🍱<br>식당</div>
+        <div class="building" id="library">📚<br>도서관</div>
+       
+        <div id="player">👧</div>
+        <div id="map-dialogue" onclick="closeDialogue()"></div>
+        <div id="options-container"></div>
+        <div id="angry-alert" onclick="calmDown()">💢 이한몬이 화났다!<br>이동 불가! 아저씨 터치! 👨</div>
+    </div>
+</div>
+
+<div id="pokedex-screen">
+    <h1 style="color: #4d6f8f; text-shadow: 2px 2px 0 #fff; margin-bottom: 5px; font-size: 40px;">강이한 전설 도감</h1>
+    <p style="color: #666; margin-top: 0; font-size: 20px;">리비스주의자로서 이 세상을 살아가는 낭만 가득한 ENFP!</p>
+
+    <div class="glass-box">
+        <h2 style="margin-top: 0;">📋 기본 정보</h2>
+        <p><strong>이름:</strong> 강이한 👧</p>
+        <p><strong>생일:</strong> 3월 16일 🎂</p>
+        <p><strong>MBTI:</strong> ENFP ✨</p>
+    </div>
+
+    <div class="glass-box">
+        <h2 style="margin-top: 0;">💖 이한이의 취향 배지</h2>
+        <div>
+            <span class="badge">테토(보카로)🤖</span> <span class="badge">아저씨👨</span>
+            <span class="badge">넥타이👔</span> <span class="badge">턱시도샘🐧</span>
+            <span class="badge">도토레🧪</span> <span class="badge">곽제강😎</span>
+            <span class="badge">슬라임💧</span> <span class="badge">말랑이🧸</span>
+            <span class="badge">ASMR🎧</span> <span class="badge">독서📚</span>
+        </div>
+    </div>
+
+    <div class="glass-box">
+        <h2 style="margin-top: 0;">🧠 인사이드 아웃 감정 센터</h2>
+        <div class="emotion-container">
+            <div class="emotion e-sad">슬픔이</div>
+            <div class="emotion e-sensitive">예민이</div>
+            <div class="emotion e-disgust">까칠이</div>
+            <div class="emotion e-anxious">불안이</div>
+            <div class="emotion e-anger">버럭이</div>
+        </div>
+    </div>
+
+    <div class="glass-box">
+        <h2 style="margin-top: 0;">🏆 이한이의 최애 선생님 TOP 3</h2>
+        <p style="font-size: 16px; color: #888;">(클릭해서 확인하세요!)</p>
+        <div class="teacher-box" onclick="this.innerHTML='🥉 3위: 김영은쌤 (국어) - 📖 국어 사랑의 시작!'">🔒 3위 보기</div>
+        <div class="teacher-box" onclick="this.innerHTML='🥈 2위: 강민지쌤 (영어) - 🔤 글로벌 이한몬 메이커!'">🔒 2위 보기</div>
+        <div class="teacher-box" onclick="this.innerHTML='🥇 1위: 홍관의쌤 (국어) - ✨ 어~! 마이 데스티니~!'">🔒 1위 보기</div>
+    </div>
+
+    <div class="glass-box">
+        <h2 style="margin-top: 0;">🔥 오늘의 화남 지수</h2>
+        <div class="meter"><div class="fill" id="rage-bar"></div></div>
+        <p id="rage-text" style="font-weight: bold;"></p>
+        <div class="rage-btns">
+            <button style="background: #ff6b81; color:white;" onclick="changeRage(15)">화나게 하기 😈</button>
+            <button style="background: #7bed9f;" onclick="changeRage(-15)">화 풀어주기 😇</button>
+        </div>
+    </div>
+
+    <div class="glass-box">
+        <h2 style="margin-top: 0;">💬 이한 명언 생성기</h2>
+        <div id="quote-box" style="background: white; padding: 20px; border-radius: 10px; border: 2px dashed #aaa; margin-bottom: 10px; font-size: 20px;">버튼을 눌러 명언을 뽑아보세요!</div>
+        <button class="choice-btn" onclick="newQuote()" style="font-size: 20px;">명언 뽑기 🎲</button>
+    </div>
+
+    <div style="padding-bottom: 30px;">
+        <button class="choice-btn" style="background: #ffeaa7; font-size: 20px;" onclick="location.reload();">처음부터 다시 하기 🔄</button>
+    </div>
+</div>
+
+<div id="sensei-popup">👨‍🏫 어~! 마이 데스티니~ 도감 보고 있니?</div>
+
+<script>
+    let hearts = 0; const maxHearts = 3;
+    let playerX = 85, playerY = 85;
+    let currentEvent = 0, isDialogueOpen = false, isAngry = false, angryTimer;
+
+    function gainHeart() {
+        if(hearts < maxHearts) hearts++;
+        let heartStr = "";
+        for(let i=0; i<maxHearts; i++) { heartStr += (i < hearts) ? "❤️" : "🤍"; }
+        document.getElementById('heart-gauge').innerText = heartStr;
+    }
+
+    function startJellyRain() {
+        for(let i=0; i<30; i++) {
+            let jelly = document.createElement('div');
+            jelly.innerText = '🍬'; jelly.className = 'falling-jelly';
+            jelly.style.left = (Math.random() * 660) + 'px'; jelly.style.top = '-40px';
+            jelly.style.animationDuration = (Math.random() * 1.5 + 1) + 's';
+            document.getElementById('map-screen').appendChild(jelly);
+            setTimeout(() => jelly.remove(), 2500);
+        }
+    }
+
+    let typingTimeout;
+    function typeWriter(text, elementId, speed = 30) {
+        clearTimeout(typingTimeout);
+        const el = document.getElementById(elementId);
+        el.innerHTML = ''; el.style.display = 'block';
+        let i = 0;
+        function type() {
+            if (i < text.length) {
+                if(text.charAt(i) === '<') {
+                    let tag = '';
+                    while(text.charAt(i) !== '>') { tag += text.charAt(i); i++; }
+                    tag += '>'; el.innerHTML += tag;
+                } else { el.innerHTML += text.charAt(i); }
+                i++; typingTimeout = setTimeout(type, speed);
+            } else { el.innerHTML += "<br><span style='font-size:14px; color:#666; display:block; margin-top:10px;'>▶ 클릭해서 진행</span>"; }
+        }
+        type();
+    }
+
+    const introDialogues = ["포켓몬 세계에 온 걸 환영한다!", "내 이름은 오박사.", "너의 파트너가 될 포켓몬을 골라보렴."];
+    let introIndex = 0;
+    window.onload = () => typeWriter(introDialogues[0], 'dialogue-box');
+
+    function nextDialogue() {
+        introIndex++;
+        if (introIndex < introDialogues.length) {
+            typeWriter(introDialogues[introIndex], 'dialogue-box');
+        } else {
+            document.getElementById('intro-screen').classList.remove('active');
+            document.getElementById('starter-screen').classList.add('active');
+            document.getElementById('dialogue-box').style.display = 'none';
+        }
+    }
+
+    let ballClicked = [false, false, false];
+    function checkBall(index) {
+        if(ballClicked[index]) return;
+        ballClicked[index] = true; alert("앗! 몬스터볼이 비어있다!");
+        if(ballClicked[0] && ballClicked[1] && ballClicked[2]) {
+            alert("👨‍🦳 오박사: 다른 녀석들이 다 가져갔군. 이 특별한 녀석을 데려가렴!");
+            alert("✨ 단발머리의 '이한몬(👧)'을 얻었다!\n(커플룩 짠!)");
+            startGame();
+        }
+    }
+
+    function startGame() {
+        document.getElementById('starter-screen').classList.remove('active');
+        document.getElementById('map-screen').classList.add('active');
+        startAngryMechanic(); isDialogueOpen = true;
+        typeWriter("집에서 출발했다!<br>오른쪽 길을 따라 학교(🏫)로 가자.", 'map-dialogue');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if(!document.getElementById('map-screen').classList.contains('active')) return;
+        if(document.getElementById('options-container').style.display === 'flex' || isDialogueOpen || isAngry) return;
+        const speed = 40;
+        if (e.key === 'w' || e.key === 'W') playerY -= speed;
+        if (e.key === 's' || e.key === 'S') playerY += speed;
+        if (e.key === 'a' || e.key === 'A') playerX -= speed;
+        if (e.key === 'd' || e.key === 'D') playerX += speed;
+        playerX = Math.max(20, Math.min(620, playerX)); playerY = Math.max(20, Math.min(420, playerY));
+        document.getElementById('player').style.left = playerX + 'px';
+        document.getElementById('player').style.top = playerY + 'px';
+        setTimeout(checkEvents, 200);
+    });
+
+    function closeDialogue() {
+        document.getElementById('map-dialogue').style.display = 'none'; isDialogueOpen = false;
+        if(currentEvent === 1.5) {
+            showOptions("👨‍🏫 관의쌤: 어~! 마이 데스티니~ 국어천재, 이거 맞춰봐!<br>'시간 날 때 000 공부해라'", ["틈틈이", "틈틈히"], "틈틈이", "에잉~ 틀렸어!", "정답! (❤️ 획득!)", 2, () => gainHeart());
+        }
+        if(currentEvent === 8) {
+            alert("📱 삐비빅... 이한몬의 전설 도감이 해제되었습니다!");
+            // 도감 화면 띄우기 (전체 화면 팝업 느낌)
+            document.getElementById('pokedex-screen').classList.add('active');
+        }
+    }
+
+    function triggerEvent(eventNum, text) { currentEvent = eventNum; isDialogueOpen = true; typeWriter(text, 'map-dialogue', 30); }
+
+    function showOptions(question, options, correctAnswer, wrongMsg, rightMsg, nextEventNum = null, onRightChoice = null) {
+        const container = document.getElementById('options-container');
+        container.innerHTML = `<h3 style="margin-top:0; margin-bottom:15px;">${question}</h3>`;
+        options.forEach(opt => {
+            const btn = document.createElement('button'); btn.className = 'choice-btn'; btn.innerText = opt;
+            btn.onclick = () => {
+                if(correctAnswer === "ANY" || opt === correctAnswer) {
+                    container.style.display = 'none'; if(onRightChoice) onRightChoice();
+                    if(nextEventNum !== null) currentEvent = nextEventNum; triggerEvent(currentEvent, rightMsg);
+                } else { alert(wrongMsg); }
+            }; container.appendChild(btn);
+        });
+        container.style.display = 'flex'; isDialogueOpen = true;
+    }
+
+    function checkEvents() {
+        if(currentEvent === 0 && playerX >= 300 && playerY <= 150) { currentEvent = 1; showOptions("👨‍🏫 관의쌤: 어~! 마이 데스티니~ 어디 가?", ["저 학교 가요!", "비밀인데요~ 😝"], "ANY", "", "👨‍🏫 관의쌤: 그래 늦지 않게 가라~"); }
+        if(currentEvent === 1 && playerX >= 550 && playerY <= 120) { currentEvent = 1.5; triggerEvent(1.5, "🏫 국어! (👧 눈이 번쩍! 초롱초롱✨)"); }
+        if(currentEvent === 2 && playerX <= 300 && playerY >= 200) { currentEvent = 3; showOptions("👨‍🏫 관의쌤: 어~! 마이 데스티니~ 밥 먹으러 가?", ["네!", "같이 드실래요?"], "ANY", "", "👨‍🏫 관의쌤: 오냐 많이 먹어라~"); }
+        if(currentEvent === 3 && playerX <= 150 && playerY >= 350) { currentEvent = 4; showOptions("무엇을 먹을까?", ["라면 🍜", "젤리 🍬", "랍스타 🦞"], "젤리 🍬", "이한몬이 고개를 젓는다.", "이한몬이 젤리를 먹었다! (❤️)", 5, () => { gainHeart(); startJellyRain(); }); }
+        if(currentEvent === 5 && playerX >= 550 && playerY >= 350) { triggerEvent(6, "📚 도서관에서 책을 읽었다! 기분 최고!"); }
+        if(currentEvent === 6 && playerX >= 550 && playerY <= 150) { currentEvent = 7; showOptions("어떤 노래를 들을까?", ["J-POP 🎵", "힙합 🎤", "보카로 🤖"], "보카로 🤖", "표정이 안 좋다.", "미쿠~테토~!!! (❤️)<br>관의쌤: Pretender 들어봐!", 7, () => gainHeart()); }
+        if(currentEvent === 7 && playerX <= 150 && playerY <= 150) {
+            clearInterval(angryTimer);
+            let endingMsg = (hearts === 3) ? "❤️ 우리는 평생 단짝!" : "🤍 우린 좋은 친구!";
+            triggerEvent(8, `🛏️ 잠자리에 들었다.<br>오늘의 명언: "가장 넓은 길은 언제나 내 마음속에"<br><br>${endingMsg}`);
+        }
+    }
+
+    function startAngryMechanic() {
+        angryTimer = setInterval(() => {
+            if(!isDialogueOpen && document.getElementById('options-container').style.display !== 'flex' && currentEvent < 8) {
+                if(Math.random() > 0.6) { isAngry = true; document.getElementById('angry-alert').style.display = 'block'; }
+            }
+        }, 7000);
+    }
+    function calmDown() { isAngry = false; document.getElementById('angry-alert').style.display = 'none'; alert("👨 아저씨의 미소를 보고 화가 풀렸다!"); }
+
+    // --- 도감 기능 ---
+    let rage = 50;
+    function updateRageUI() {
+        document.getElementById('rage-bar').style.width = rage + '%';
+        document.getElementById('rage-text').innerText = '현재 화남 지수: ' + rage + '%';
+        if(rage >= 100) document.getElementById('rage-text').innerText += ' (폭발 직전!! 🌋)';
+        if(rage <= 0) document.getElementById('rage-text').innerText += ' (평온 그 자체 👼)';
+    }
+    updateRageUI();
+
+    function changeRage(amount) {
+        rage += amount;
+        if(rage > 100) rage = 100;
+        if(rage < 0) rage = 0;
+        updateRageUI();
+    }
+
+    const quotes = [
+        '테토 노래 한 곡만 더 듣고 잘게 🤖',
+        '아저씨 캐릭터가 세상을 구한다 👨',
+        '리비스주의자의 길은 멀고도 험난하다...',
+        '슬라임 만지면서 ASMR 들으면 그곳이 천국 🎧',
+        '어~! 마이 데스티니~ 이건 우연이 아니라 운명이야.',
+        '국어는 사랑, 수학은... 💤',
+        '젤리 없는 세상은 상상할 수 없어 🍬'
+    ];
+    function newQuote() {
+        const qBox = document.getElementById('quote-box');
+        const randomQ = quotes[Math.floor(Math.random() * quotes.length)];
+        qBox.innerText = `"${randomQ}"`;
+    }
+
+    setInterval(() => {
+        const pokedex = document.getElementById('pokedex-screen');
+        if(pokedex.classList.contains('active') && Math.random() < 0.4) {
+            const senseiPopup = document.getElementById('sensei-popup');
+            senseiPopup.style.display = 'block';
+            setTimeout(() => senseiPopup.style.display = 'none', 3000);
+        }
+    }, 6000);
+</script>
+</body>
+</html>
